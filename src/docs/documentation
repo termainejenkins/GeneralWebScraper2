@@ -1,0 +1,44 @@
+Web Scraping App
+This is a web app that uses web scraping to extract data from various sources. It has three main modes: general, Amazon, and Job Board.
+
+Table of Contents
+General Mode
+Amazon Mode
+Job Board Mode
+Technologies Used
+Getting Started
+License
+
+
+General Mode
+In general mode, the user can enter a URL and scrape data from it. The app will automatically detect the type of data and display the appropriate component.
+
+Amazon Mode
+In Amazon mode, the user can enter a product URL and scrape information about the product, including reviews, price history, and more.
+
+Job Board Mode
+In Job Board mode, the user can enter a job board URL and scrape job listings.
+
+Technologies Used
+Vue.js
+Node.js
+Express.js
+Axios
+Cheerio
+
+
+
+
+Issue: Incorrect Import Statement for createProxyMiddleware
+
+When attempting to use createProxyMiddleware from the http-proxy-middleware package in a Node.js application, there was an issue with the import statement. The error message indicated that createProxyMiddleware is not a function.
+
+Solution: Correct Import Statement
+
+The issue was resolved by ensuring the correct import statement. The correct import syntax involves using curly braces around createProxyMiddleware since it is an exported member of the http-proxy-middleware module.
+
+javascript
+Copy code
+import { createProxyMiddleware } from 'http-proxy-middleware';
+This corrected the error and allowed the application to use createProxyMiddleware as intended.
+

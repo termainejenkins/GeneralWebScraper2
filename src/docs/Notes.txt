@@ -1,0 +1,541 @@
+{
+  "name": "gws-vue-1",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\" \"npm run start-electron\"",
+    "dev2": "(npm run dev:backend && npm run dev:frontend && npm run start-electron || error)",
+    "dev:frontend": "(vite || error)",
+    "dev:backend": "(tsc && node src/backend/proxyServer.js && node src/backend/server.js || error)",
+    "proxy-server": "nodemon src/backend/proxyServer.js",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "start-electron": "(electron src/main.js || error)"
+  },
+  "dependencies": {
+    "async-retry": "^1.3.3",
+    "cors": "^2.8.5",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "express": "^4.17.1",
+    "http-proxy-middleware": "^2.0.6",
+    "playwright": "^1.19.0",
+    "vue": "^3.3.8"
+  },
+  "devDependencies": {
+    "@types/async-retry": "^1.4.8",
+    "@types/plist": "^3.0.5",
+    "@types/vue": "^2.0.0",
+    "@vitejs/plugin-vue": "^4.5.0",
+    "@vue/tsconfig": "^0.5.1",
+    "concurrently": "^8.2.2",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0",
+    "vue-tsc": "^1.8.22"
+  }
+}
+
+
+// src/main.js
+import { app, BrowserWindow } from 'electron';
+import * as path from 'path';
+import process from 'process';
+
+// Check if the app is running in development mode
+const isDev = isDevelopment();
+
+console.log('isDev:', isDev);
+
+let mainWindow;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      nodeIntegration: true,
+      devTools: true, // Enable DevTools and context menu
+    },
+  });
+
+  if (isDev) {
+    // Load the React app from the development server
+    mainWindow.loadURL('http://localhost:5173/');
+  } else {
+    // // Load the React app from the local file
+    // const currentFileURL = import.meta.url;
+    // const currentDir = path.dirname(new URL(currentFileURL).pathname);
+    // mainWindow.loadFile(path.join(currentDir, 'dist', '/index.html'));
+
+    //   // Load the React app from the local file
+    // mainWindow.loadURL(`file://${path.join(currentDir, 'index.html')}`);
+
+    //  mainWindow.loadFile('../dist/index.html');
+    // mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile('../dist/index.html');
+    
+  }
+}
+
+function isDevelopment() {
+  return process.env.NODE_ENV !== 'production';
+}
+
+app.on('ready', createWindow);
+
+app.on('window-all-closed', function () {
+  if (typeof process !== 'undefined' && process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', function () {
+  if (mainWindow === null) createWindow();
+});
+
+
+
+// src/app.vue
+
+<template>
+  <div>
+    <h1>Web Scraping App</h1>
+    <label for="url">URL:</label>
+    <input v-model="url" type="text" id="url" />
+    <button @click="scrape">Scrape</button>
+    <div v-if="result">
+      <h2>Scraped Data:</h2>
+      <pre>{{ result }}</pre>
+    </div>
+
+    <!-- Add mode switcher buttons or menu -->
+    <div class="mode-switcher">
+      <button @click="setMode('general')">General</button>
+      <button @click="setMode('amazon')">Amazon</button>
+      <button @click="setMode('jobBoard')">Job Board</button>
+      <button @click="setMode('test')">Test</button>
+    </div>
+
+    <!-- Render the appropriate component based on the current mode -->
+    <component :is="vueComponent" />
+  </div>
+</template>
+
+<script>
+import amazonScraper from './frontend/amazonScraper.vue';
+import jobBoardScraper from './frontend/jobBoardScraper.vue';
+
+export default {
+  data() {
+    return {
+      url: '',
+      result: null,
+      activeMode: 'general',
+    };
+  },
+  computed: {
+    vueComponent() {
+      switch (this.activeMode) {
+        case 'general':
+          return null;
+        case 'amazon':
+          return amazonScraper;
+        case 'jobBoard':
+          return jobBoardScraper;
+        case 'test':
+          return null;
+
+        default:
+          // General mode (default)
+          return null;
+      }
+    },
+  },
+  methods: {
+    async scrape() {
+      console.log('CLIENTAPP.VUE: Starting scraping process...');
+      
+      try {
+    console.log('CLIENTAPP.VUE: Sending scraping request to the backend...');
+    const response = await fetch(`http://localhost:3002/api/${this.activeMode}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: this.url }),
+      });
+
+        if (!response.ok) {
+          throw new Error(`CLIENTAPP.VUE: Failed to fetch data. Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('CLIENTAPP.VUE: Received response from the backend:', data);
+
+        // Handle the scraped data
+        console.log('CLIENTAPP.VUE: Scraped Data:', 'Replace this with actual scraped data');
+      } catch (error) {
+        console.error('CLIENTAPP.VUE: Error during scraping:', error.message || error);
+      }
+    },
+    setMode(mode) {
+      console.log(`CLIENTAPP.VUE: Switching mode to...${mode}`);
+      this.activeMode = mode;
+    },
+  },
+};
+</script>
+
+<style scoped>
+
+</style>
+
+
+
+
+
+
+// src/frontend/jobBoardScraper.vue
+
+<template>
+    <div>
+      <h2>Job Board Scraper</h2>
+      <label for="websites">Websites:</label>
+      <!-- <input v-model="websites" type="text" id="websites" placeholder="Enter job board websites" /> -->
+      <select v-model="selectedWebsite" id="websites">
+      <option value="">Select a job board website</option>
+      <option v-for="website in websiteOptions" :key="website" :value="website">
+        {{ website }}
+      </option>
+    </select>
+  
+      <label for="jobTitles">Job Titles:</label>
+      <input v-model="jobTitles" type="text" id="jobTitles" placeholder="Enter job titles" />
+  
+      <label for="locations">Locations:</label>
+      <input v-model="locations" type="text" id="locations" placeholder="Enter locations" />
+  
+      <!-- Add checkbox for headless mode -->
+      <label for="headless">Headless:</label>
+      <input v-model="headless" type="checkbox" id="headless" />
+  
+      <button @click="scrapeJobBoard">Scrape Job Board</button>
+    </div>
+  </template>
+  
+  <script setup>
+  import { ref } from 'vue';
+  import { websiteOptions } from '../backend/jobBoardOptions';
+
+  
+  // Define selectedWebsite
+  const selectedWebsite = ref('');
+  const websites = selectedWebsite;
+  const jobTitles = ref('');
+  const locations = ref('');
+  const headless = ref(true);
+  
+
+  const scrapeJobBoard = async () => {
+    console.log('JOBBOARDSCRAPER.VUE: Starting Job Board scraping...');
+  
+    try {
+      // HTTP requests to the backend for job board scraping
+      console.log('JOBBOARDSCRAPER.VUE: Sending request to the backend...');
+      const requestarray =[selectedWebsite, websites, jobTitles, locations, headless]; 
+      console.log('JOBBOARDSCRAPER.VUE: requestarray: ', requestarray);   
+  
+      const response = await fetch('http://localhost:3001/api/jobBoard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          websites: websites.value,
+          jobTitles: jobTitles.value,
+          locations: locations.value,
+          headless: headless.value, 
+        }),
+        mode: 'cors',
+      });
+  
+      if (!response.ok) {
+      throw new Error(`JOBBOARDSCRAPER.VUE: Failed to fetch data. Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('JOBBOARDSCRAPER.VUE: Received response from the backend:', data);
+
+    // Handle the scraped data
+    console.log('JOBBOARDSCRAPER.VUE: Scraped Data:', 'Replace this with actual scraped data');
+  } catch (error) {
+    console.error('JOBBOARDSCRAPER.VUE: Error during scraping:', error.message || error);
+    // Handle or display the error in UI if needed
+  }
+};
+  </script>
+  
+  <style scoped>
+
+  </style>
+  ../backend/jobBoardOptions
+
+
+
+  // src/backend/proxyServer.js
+
+import express from 'express';
+import cors from 'cors';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+
+const app = express();
+const port = 3001;
+
+app.use(cors());
+
+// Use the proxy middleware
+//app.use('/api', proxyMiddleware);
+
+app.post('/api/test', async (req, res) => {
+  console.log('PROXY SERVER: Request received:', req.url);
+  res.json({ success: true });
+  res.end();
+  console.log('PROXY SERVER: Response sent');
+});
+
+const proxyMiddleware = createProxyMiddleware({
+  target: 'http://localhost:3002',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api': '/api',
+  },
+  onError: (err, req, res) => {
+    console.error('PROXY SERVER: Proxy Error:', err);
+    res.status(500).send('Proxy Error');
+  },
+
+});
+
+// Start the proxy server
+app.listen(port, () => {
+  console.log(`PROXY SERVER: Proxy server is running on port ${port} http://localhost:${port}`);
+});
+
+
+// src/backend/server.js
+
+import express from 'express';
+import cors from 'cors';
+import playwright from 'playwright';
+import { runMonsterWorker } from './workers/monsterWorker.ts';
+import proxyMiddleware from '.src/backend/proxyServer.js';
+
+const app = express();
+const port = 3002;
+
+app.use(express.json());
+app.use(cors());
+
+app.use('/api', proxyMiddleware);
+
+app.post('/api/test', async (req, res) => {
+  console.log('SERVER: Request received:', req.url);
+  res.json({ success: true });
+  res.end();
+  console.log('SERVER: Response sent') });
+
+app.post('/scrape/jobBoard', async (req, res) => {
+  console.log('SERVER: Received Job Board scraping request');
+  const { websites, jobTitles, locations, headless } = req.body;
+  console.log('SERVER: Received Job Board scraping request');
+
+  if (!websites || !jobTitles || !locations) {
+    return res.status(400).json({ error: 'Websites, job titles, and locations are required' });
+  }
+
+  try {
+    // Call the monsterWorker logic
+    console.log('Received Job Board scraping request:', { websites, jobTitles, locations, headless });
+    const jobBoardData = await runMonsterWorker(websites, jobTitles, locations, headless);
+
+    console.log('SERVER: Job Board Data:', jobBoardData);
+
+    res.json({ success: true, data: jobBoardData });
+  } catch (error) {
+    console.error('SERVER: Error during Job Board scraping:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+app.post('/scrape/amazon', async (req, res) => {
+  console.log('SERVER: Received Amazon scraping request');
+  const { headless } = req.body;
+  console.log('SERVER: Received Amazon scraping request');
+
+});
+
+app.post('/scrape/amazon2', async (req, res) => {
+  console.log('SERVER: Received Amazon scraping request');
+  const { headless } = req.body;
+  console.log('SERVER: Received Amazon scraping request');
+
+  const playwright = require('playwright');
+
+  const browser = await playwright.chromium.launch({ headless });
+  const page = await browser.newPage();
+
+  await page.goto('https://www.amazon.com');
+
+  // Fill in the search bar
+  await page.fill('input[name="field-keywords"]', 'Product Name');
+  await page.press('input[name="field-keywords"]', 'Enter');
+
+  // Click the first result
+  await page.click('a.a-link-normal');
+
+  // Extract the product details
+  const title = await page.title();
+  const price = await page.textContent('span[class="a-price-whole"]');
+  const rating = await page.textContent('span[class="a-icon-alt a-star-small"]');
+
+  await browser.close();
+
+  res.json({
+    title,
+    price,
+    rating
+  });
+});
+
+
+// Start the proxy server
+app.listen(port, () => {
+  console.log(`SERVER: Server is running on http://localhost:${port}`);
+});
+
+
+
+// src/backend/workers/monsterWorker.ts
+
+import debug from 'debug';
+import { chromium, Browser, Page } from 'playwright';
+import retry from 'async-retry';
+
+const debugMode = true; // Set to true to enable debugging
+const headless = true; // Set to false to launch browser in non-headless mode
+
+
+interface JobData {
+  title: string;
+  company: string;
+}
+
+// Enable debugging if debugMode is true
+if (debugMode) {
+  debug.enable('*');
+}
+
+async function launchBrowser(headless:boolean): Promise<{ browser: Browser; page: Page }> {
+  const browser = await chromium.launch({ headless, devtools: true });
+  const page = await browser.newPage();
+  return { browser, page };
+}
+
+async function closeBrowser(browser: Browser) {
+  await browser.close();
+}
+
+async function scrapeJobListings(page: Page): Promise<JobData[]> {
+  await page.waitForSelector(".job-listing");
+
+  const jobBoardData = await page.$$eval(".job-listing", (jobListings) => {
+    return jobListings.map((listing) => {
+      const title = listing.querySelector(".job-title")!.textContent!;
+      const company = listing.querySelector(".company-name")!.textContent!;
+      return { title, company };
+    });
+  });
+
+  return jobBoardData;
+}
+
+
+export async function scrapeJobBoard(
+  websites: string,
+  jobTitles: string,
+  locations: string
+): Promise<JobData[]> {
+  const { browser, page } = await launchBrowser(headless);
+
+  try {
+    await page.goto(websites);
+    await page.locator("#jobTitlesInput").fill(jobTitles);
+    await page.locator("#locationsInput").fill(locations);
+    await page.click("#searchButton");
+
+    return await scrapeJobListings(page);
+  } finally {
+    await closeBrowser(browser);
+  }
+}
+
+async function runMonsterWorker(websites: string, jobTitles: string, locations: string, headless: boolean): Promise<void> {
+  console.log('Running Monster Worker');
+  const { browser, page } = await launchBrowser(headless);
+
+  try {
+    await page.goto(websites);
+    await page.locator('#jobTitlesInput').fill(jobTitles);
+    await page.locator('#locationsInput').fill(locations);
+    await page.click('#searchButton');
+
+    while (true) {
+      const jobBoardData = await retryScrapeJobListings(page);
+      console.log('Job Board Data:', jobBoardData);
+
+      if (debugMode) {
+        await page.pause();
+      }
+
+      const nextButton = await page.$('button[data-testid="pagination-next-button"]');
+      if (nextButton) {
+        const nextUrl = await nextButton.innerText();
+        await Promise.all([
+          page.waitForURL(nextUrl, { waitUntil: 'networkidle' }),
+          nextButton.click(),
+        ]);
+      } else {
+        break;
+      }
+
+      if (debugMode) {
+        await page.pause();
+      }
+    }
+  } finally {
+    await closeBrowser(browser);
+  }
+}
+
+async function retryScrapeJobListings(page: Page): Promise<JobData[]> {
+  return retry(() => scrapeJobListings(page), {
+    retries: 3,
+    onRetry: (err) => {
+      console.log(`Retrying in 1 second... ${err.message}`);
+    },
+  });
+}
+
+// Example usage:
+const websites = 'https://example.com';
+const jobTitles = 'Software Engineer';
+const locations = 'San Francisco';
+
+runMonsterWorker(websites, jobTitles, locations, headless)
+  .catch((error) => {
+    console.error('Error during Job Board scraping:', error);
+    process.exit(1);
+  });
+
+
+
+
+  export{runMonsterWorker} 
