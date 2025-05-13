@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gws-ingress
+  namespace: gws
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.gws.example.com
+    secretName: gws-tls
+  rules:
+  - host: api.gws.example.com
+    http:
+      paths:
+      - path: /api/job-board
+        pathType: Prefix
+        backend:
+          service:
+            name: job-board
+            port:
+              number: 3001
+      - path: /api/amazon
+        pathType: Prefix
+        backend:
+          service:
+            name: amazon
+            port:
+              number: 3002
+      - path: /api/proxy
+        pathType: Prefix
+        backend:
+          service:
+            name: proxy
+            port:
+              number: 3002
+      - path: /api/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: auth
+            port:
+              number: 3003 

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-board
+  namespace: gws
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: job-board
+  template:
+    metadata:
+      labels:
+        app: job-board
+    spec:
+      containers:
+      - name: job-board
+        image: ${DOCKER_REGISTRY}/gws/job-board:latest
+        ports:
+        - containerPort: 3001
+        envFrom:
+        - configMapRef:
+            name: gws-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 15
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-board
+  namespace: gws
+spec:
+  selector:
+    app: job-board
+  ports:
+  - port: 3001
+    targetPort: 3001
+  type: ClusterIP 

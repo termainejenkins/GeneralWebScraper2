@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amazon
+  namespace: gws
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: amazon
+  template:
+    metadata:
+      labels:
+        app: amazon
+    spec:
+      containers:
+      - name: amazon
+        image: ${DOCKER_REGISTRY}/gws/amazon:latest
+        ports:
+        - containerPort: 3002
+        envFrom:
+        - configMapRef:
+            name: gws-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3002
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3002
+          initialDelaySeconds: 15
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: amazon
+  namespace: gws
+spec:
+  selector:
+    app: amazon
+  ports:
+  - port: 3002
+    targetPort: 3002
+  type: ClusterIP 

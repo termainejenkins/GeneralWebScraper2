@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gws-config
+  namespace: gws
+data:
+  NODE_ENV: "production"
+  JWT_SECRET: "your-secret-key-here"
+  JOB_BOARD_PORT: "3001"
+  AMAZON_PORT: "3002"
+  PROXY_PORT: "3002"
+  AUTH_PORT: "3003" 

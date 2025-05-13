@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gws
+  labels:
+    name: gws
+    environment: production 
