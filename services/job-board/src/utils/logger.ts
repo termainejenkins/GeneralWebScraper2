@@ -1,16 +1,27 @@
-export const logger = {
-  info: (message: string) => {
-    console.log(`[INFO] ${new Date().toISOString()} - ${message}`);
-  },
-  error: (message: string, error?: any) => {
-    console.error(`[ERROR] ${new Date().toISOString()} - ${message}`, error || '');
-  },
-  warn: (message: string) => {
-    console.warn(`[WARN] ${new Date().toISOString()} - ${message}`);
-  },
-  debug: (message: string) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(`[DEBUG] ${new Date().toISOString()} - ${message}`);
-    }
-  }
-}; 
+import winston from 'winston';
+import { config } from '../config';
+
+const logger = winston.createLogger({
+    level: config.logLevel,
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    transports: [
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.simple()
+            ),
+        }),
+    ],
+});
+
+// Create a stream object for Morgan
+export const stream = {
+    write: (message: string) => {
+        logger.info(message.trim());
+    },
+};
+
+export default logger; 
